@@ -12,8 +12,14 @@ local function init(self)
 	}
 
 	for _, name in ipairs(NAH_Missions) do
+		local mission_name = "Mission_NAH_"..name
 		require(self.scriptPath.."missions/"..string.lower(name))
+		modApi:appendAsset("img/strategy/mission/"..mission_name..".png", self.resourcePath.."img/strategy/mission/"..mission_name..".png")
+		modApi:appendAsset("img/strategy/mission/small/"..mission_name..".png", self.resourcePath.."img/strategy/mission/small/"..mission_name..".png")
 	end
+	local archive = easyEdit.missionList:get("archive")
+	archive:addMission("Mission_NAH_Incinerator",false)
+
 end
 
 
