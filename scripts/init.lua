@@ -9,17 +9,17 @@ local function init(self)
 	self.libs.modApiExt = modapiext
 	local NAH_Missions = {
 		"Incinerator",
+		"Falling_Mountains",
 	}
+	local missionList = easyEdit.missionList:add("NamesAreHard")
 
 	for _, name in ipairs(NAH_Missions) do
 		local mission_name = "Mission_NAH_"..name
 		require(self.scriptPath.."missions/"..string.lower(name))
 		modApi:appendAsset("img/strategy/mission/"..mission_name..".png", self.resourcePath.."img/strategy/mission/"..mission_name..".png")
 		modApi:appendAsset("img/strategy/mission/small/"..mission_name..".png", self.resourcePath.."img/strategy/mission/small/"..mission_name..".png")
+		missionList:addMission(mission_name,false)
 	end
-	local archive = easyEdit.missionList:get("archive")
-	archive:addMission("Mission_NAH_Incinerator",false)
-
 end
 
 
