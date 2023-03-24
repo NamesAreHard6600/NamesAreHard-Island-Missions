@@ -7,9 +7,12 @@ local function init(self)
 
 	self.libs = {}
 	self.libs.modApiExt = modapiext
+	self.libs.weaponPreview = require(self.scriptPath.."libs/weaponPreview")
+
 	local NAH_Missions = {
 		"Incinerator",
 		"Falling_Mountains",
+		"Digging",
 	}
 	local missionList = easyEdit.missionList:add("NamesAreHard")
 
