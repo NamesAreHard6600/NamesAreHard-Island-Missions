@@ -16,6 +16,18 @@ Objectives = Objective()
 local mod = mod_loader.mods[modApi.currentMod]
 local previewer = mod.libs.weaponPreview
 
+modApi:appendAsset("img/effects/burrow_openclose.png",mod.resourcePath.."img/effects/burrow_openclose.png") --Thanks to Metalocif for the animation
+
+ANIMS.BurrowOpenClose = Animation:new{
+    Image = "effects/burrow_openclose.png",
+    NumFrames = 14,
+    Frames = {1,2,3,4,5,6,7,8},
+    Time = 0.07,
+    PosX = -27,
+    PosY = 0,
+    Layer = LAYER_FLOOR        --lets you create an animation visually behind pawns
+}
+
 Mission_NAH_Digging = Mission:new{
   Name = "Vek Excavation",
   Objectives = Objective("Dig up and kill the Volatile Vek",1),
@@ -97,12 +109,13 @@ AddPawn("NAH_Excavator")
 
 NAH_ExcavatorSkill = Skill:new{
   Name = "Excavator",
-  Description = "Excavate the Vek ",
+  Description = "Crack the tile beneath you and throw a rock. If on the dig site, throw the Vek in it instead.",
   Class = "",
   Icon = "advanced/weapons/Prime_KO_Crack", --Change
   Damage = 0,
   LaunchSound = "/weapons/shift",
   EnemyPawn = "GlowingScorpion",
+  Animation = "BurrowOpenClose",
   TipImage = {
     Unit = Point(2,2),
     Target = Point(2,1),
@@ -112,13 +125,11 @@ NAH_ExcavatorSkill = Skill:new{
 function NAH_ExcavatorSkill:GetTargetArea(p1)
   local ret = PointList()
   local mission = GetCurrentMission()
-  if Board:IsTipImage() or (mission.DigSite and p1 == mission.DigSite) then
-    for i=DIR_START,DIR_END do
-      for j=1,2 do
-        local point = p1+DIR_VECTORS[i]*j
-        if Board:IsValid(point) and not Board:IsBlocked(point,PATH_GROUND) then
-          ret:push_back(point)
-        end
+  for i=DIR_START,DIR_END do
+    for j=1,2 do
+      local point = p1+DIR_VECTORS[i]*j
+      if Board:IsValid(point) and not Board:IsBlocked(point,PATH_GROUND) then
+        ret:push_back(point)
       end
     end
   end
@@ -129,6 +140,17 @@ function NAH_ExcavatorSkill:GetSkillEffect(p1,p2)
   local ret = SkillEffect()
   local pawn = Board:GetPawn(p1)
   local mission = GetCurrentMission()
+  local spawnPawn = "Wall"
+  if (mission.DigSite and p1 == mission.DigSite) then --Board:IsTipImage() or
+    spawnPawn = self.EnemyPawn
+  end
+
+  --Animation:
+  ret:AddScript(string.format([[
+    Board:AddAnimation(%s,%q,ANIM_NO_DELAY)
+  ]],p1:GetString(),self.Animation))
+
+  ret:AddDelay(0.07*7) --Time of animation half way through
 
   --Send Self Away and Spawn Pawn
   ret:AddScript(string.format([[
@@ -137,10 +159,10 @@ function NAH_ExcavatorSkill:GetSkillEffect(p1,p2)
     pawn:SetSpace(Point(-1,-1))
     Board:AddPawn(%q,point)
     GetCurrentMission().PawnId = Board:GetPawn(point):GetId()
-  ]],tostring(pawn:GetId()),self.EnemyPawn))
+  ]],tostring(pawn:GetId()),spawnPawn))
 
   local preview = SpaceDamage(p2,0)
-  preview.sPawn = self.EnemyPawn
+  preview.sPawn = spawnPawn
   previewer:AddDamage(preview)
 
   --Add Leap
@@ -166,10 +188,11 @@ function NAH_ExcavatorSkill:GetSkillEffect(p1,p2)
     ret:AddScript("LOG(\"goodbyg\");GetCurrentMission().DigSite = nil")
   end
 
-  --Reset Terrain
-  local terrain = SpaceDamage(p1,0)
-  terrain.iTerrain = TERRAIN_ROAD
-  ret:AddDamage(terrain)
+  --Reset Terrain and Crack Tile, animations etc.
+  local damage = SpaceDamage(p1,0)
+  damage.iTerrain = TERRAIN_ROAD
+  damage.iCrack = EFFECT_CREATE
+  ret:AddDamage(damage)
 
   return ret
 end
