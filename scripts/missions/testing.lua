@@ -12,16 +12,14 @@ modApi:appendAsset("img/units/mission/propellera.png",mod.resourcePath.."img/uni
 modApi:appendAsset("img/combat/tiles_grass/invisible.png",mod.resourcePath.."img/tileset/invisible.png")
 modApi:appendAsset("img/combat/tiles_grass/moving_tile.png",mod.resourcePath.."img/tileset/moving_tile.png")
 
-a.NAH_Propeller = a.BaseUnit:new{Image = "units/mission/propeller.png", PosX = -37, PosY = -8, Layer = LAYER_FLOOR}
-a.NAH_Propellera = a.NAH_Propeller:new{Image = "units/mission/propellera.png", NumFrames = 1}
+a.NAH_Leaping_Tile = a.BaseUnit:new{Image = "units/mission/propeller.png", PosX = -37, PosY = -8}
+a.NAH_Leaping_Tilea = a.NAH_Leaping_Tile:new{Image = "units/mission/propellera.png"}
 
-local centers = {Point(5,5), Point(5,2)}
 local tiles = {{Point(5,5),Point(4,5),Point(5,4),Point(6,5),Point(5,6)},{Point(5,2),Point(4,2),Point(5,1),Point(6,2),Point(5,3)}}
 
 Mission_NAH_Testing = Mission_Infinite:new {
   Name = "Testing",
   Environment = "Env_Moving_Tiles",
-  Centers = centers,
   MovingTiles = tiles,
 }
 
@@ -33,13 +31,12 @@ function Mission_NAH_Testing:StartMission()
 end
 
 Env_Moving_Tiles = Environment:new{
-  Name = "Moving Tiles",
-  Text = "The land has ballons that float around.", --Descriptive
-  CombatName = "MOVING TILES",
-  StratText = "MOVING TILES",
+  Name = "Leaping Tiles",
+  Text = "Magic tiles are leaping around the island.", --Descriptive
+  CombatName = "LEAPING TILES",
+  StratText = "LEAPING TILES",
   CombatIcon = "advanced/combat/tile_icon/tile_wind_up.png",
   Position = 1,
-  Centers = centers,
   MovingTiles = tiles,
   Ready = false,
 }
@@ -51,10 +48,14 @@ function Env_Moving_Tiles:MarkBoard()
     local otherPos = self.Position%2+1
     local combatIcon = self.Position == 1 and "advanced/combat/tile_icon/tile_wind_up.png" or "advanced/combat/tile_icon/tile_wind_down.png"
     for i, point in ipairs(self.MovingTiles[self.Position]) do
-      Board:MarkSpaceImage(point, combatIcon, GL_Color(255,226,88,0.75))
+      if Board:GetTerrain(point) == TERRAIN_ROAD then
+        Board:MarkSpaceImage(point, combatIcon, GL_Color(255,226,88,0.75))
+      end
     end
     for i, point in ipairs(self.MovingTiles[otherPos]) do
-      Board:MarkSpaceImage(point, "combat/tile_icon/tile_airstrike.png", GL_Color(255,226,88,0.75))
+      if Board:GetTerrain(self.MovingTiles[self.Position][i]) == TERRAIN_ROAD then
+        Board:MarkSpaceImage(point, "combat/tile_icon/tile_airstrike.png", GL_Color(255,226,88,0.75))
+      end
     end
   end
 end
@@ -68,7 +69,7 @@ end
 
 local function move_tile(p1,p2,effect)
   local pawn = Board:GetPawn(p1)
-  if pawn and pawn:GetType() == "NAH_Propeller" then
+  if pawn and pawn:GetType() == "NAH_Leaping_Tile" then
     effect:AddLeap(Board:GetPath(p1, p2, pawn:GetPathProf()), NO_DELAY)
     --The second leap moves any pawns on it
     effect:AddLeap(Board:GetPath(p1, p2, pawn:GetPathProf()), NO_DELAY)
@@ -99,7 +100,7 @@ local function get_effect(from, to)
     ret = move_tile(p1,p2,ret)
   end
 
-  ret:AddDelay(0.45) --Slightly less than leap time
+  ret:AddDelay(0.45) --Timing based on in game testing
 
   for k, id in ipairs(dying_pawns) do
     ret:AddScript(string.format([[
@@ -112,6 +113,8 @@ local function get_effect(from, to)
 	return ret
 end
 
+--Moves all the tiles at "from" locations to "to" locations
+--Checks that all the from tiles are valid, and stops the movement if it is not
 --from: The list of points we are moving tiles from
 --to: The list of points we are moving tiles to, as matched with from
 local function move_tiles(from, to)
@@ -119,25 +122,41 @@ local function move_tiles(from, to)
   assert(type(to) == 'table')
   assert(#from == #to)
 
-  local leaping_tiles = {}
-  --Add pawns and set invisible tile
+  --Make copies so we can edit them
+  from = copy_table(from)
+  to = copy_table(to)
+
+  --Find all the bad indexes
+  bad_indexes = {}
   for i, point in ipairs(from) do
-    local pawn = PAWN_FACTORY:CreatePawn("NAH_Propeller")
+    if Board:GetTerrain(point) ~= TERRAIN_ROAD then --Isn't a ground tile, we can't throw it
+      table.insert(bad_indexes,i)
+    end
+  end
+
+  --Working backwards, remove the bad indexes
+  for k, v in ipairs(reverse_table(bad_indexes)) do
+    table.remove(from,v)
+    table.remove(to,v)
+  end
+
+  --Add and store tile pawns, and set tiles to invisible tiles
+  local leaping_tiles = {}
+  for i, point in ipairs(from) do
+    local pawn = PAWN_FACTORY:CreatePawn("NAH_Leaping_Tile")
     Board:AddPawn(pawn,point)
-    --I don't know how important this is anymore.
     pawn:MoveToBottom() --Move it to the bottom so that we access it when needed
     Board:SetCustomTile(point,"invisible.png")
     table.insert(leaping_tiles,pawn:GetId())
   end
 
-  --schmoving
+  --Get and trigger the leaps and such
   effect = get_effect(from,to)
-
   Board:AddEffect(effect)
 
-  --Needs to wait some time for stuff to start moving
+  --Wait some time, then...
   modApi:scheduleHook(100, function()
-    --Remove the invisible tile
+    --Remove the invisible tiles
     for i, point in ipairs(from) do
       Board:SetTerrain(point,TERRAIN_HOLE)
     end
@@ -148,7 +167,8 @@ local function move_tiles(from, to)
     end
   end)
 
-  modApi:scheduleHook(800, --Wait for leap to finish: It takes 800 msec
+  --Wait for leap to finish: It takes 800 msec
+  modApi:scheduleHook(800,
   function()
     --Kill All Tile Pawns and Place Tiles Back
     for k, id in ipairs(leaping_tiles) do
@@ -173,17 +193,16 @@ function Env_Moving_Tiles:ApplyEffect()
 end
 
 
-NAH_Propeller = {
+NAH_Leaping_Tile = {
   Name = "Moving Tile",
   Health = 2,
   MoveSpeed = 4,
-  Image = "NAH_Propeller", --Change
+  Image = "NAH_Leaping_Tile", --Change
   SoundLocation = "/support/civilian_tank/", --Probably Change
   DefaultTeam = TEAM_NONE,
   --SkillList = {"NAH_ExcavatorSkill"},
   IsPortrait = false,
   Massive = true,
   Flying = true,
-  --MoveSkill = "NAH_Propeller_Move"
 }
-AddPawn("NAH_Propeller")
+AddPawn("NAH_Leaping_Tile")
