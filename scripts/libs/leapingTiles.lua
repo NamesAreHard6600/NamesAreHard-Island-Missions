@@ -84,9 +84,13 @@ function this:move_tiles(from, to, spawn_pawn, custom_tile, invisible_tile)
     bad_indexes = {}
     for i, point in ipairs(from) do
       local point2 = to[i]
-      --From isn't a ground tile, we can't throw it.
-      --To isn't a hole, it can't land safely, unless it's also moving (why we repeat, in case a from isn't valid)
-      if not Board:IsValid(point) or not Board:IsValid(point2) or Board:GetTerrain(point) ~= TERRAIN_ROAD or (Board:GetTerrain(point2) ~= TERRAIN_HOLE and not list_contains(from, point2)) then
+
+      if false or
+      not Board:IsValid(point) or --Not Valid
+      not Board:IsValid(point2) or --Not Valid
+      Board:GetTerrain(point) ~= TERRAIN_ROAD or --From isn't a ground tile, we can't throw it.
+      (Board:GetTerrain(point2) ~= TERRAIN_HOLE and not list_contains(from, point2)) or --To isn't a hole, it can't land safely, unless it's also moving (why we repeat, in case a from isn't valid)
+      point == point2 then --We're trying to jump to the same point, that breaks things, so just don't
         table.insert(bad_indexes,i)
       end
     end

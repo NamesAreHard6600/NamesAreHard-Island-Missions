@@ -5,8 +5,7 @@ local resourcePath = mod.resourcePath
 --local worldConstants = mod.libs.worldConstants
 local leapingTiles = mod.libs.leapingTiles
 
-local tiles = {{Point(2,2),Point(2,3),Point(2,4),Point(2,5),Point(3,2),Point(3,3),Point(3,4),Point(3,5),Point(4,2),Point(4,3),Point(4,4),Point(4,5),Point(5,2),Point(5,3),Point(5,4),Point(5,5)},
-               {Point(2,2),Point(2,3),Point(2,4),Point(2,5),Point(3,2),Point(3,3),Point(3,4),Point(3,5),Point(4,2),Point(4,3),Point(4,4),Point(4,5),Point(5,2),Point(5,3),Point(5,4),Point(5,5)}}
+local tiles = {{Point(5,5),Point(4,5),Point(5,4),Point(6,5),Point(5,6)},{Point(5,2),Point(4,2),Point(5,1),Point(6,2),Point(5,3)}}
 
 Mission_NAH_Leaping_Enviornment = Mission_Infinite:new {
   Name = "Leaping Tiles",
@@ -42,10 +41,10 @@ function Env_Leaping_Tiles:MarkBoard()
     local combatIcon = self.Position == 1 and "advanced/combat/tile_icon/tile_wind_up.png" or "advanced/combat/tile_icon/tile_wind_down.png"
     for i, point in ipairs(self.MovingTiles[self.Position]) do
       local point2 = self.MovingTiles[otherPos][i]
-      --if Board:GetTerrain(point) == TERRAIN_ROAD and Board:GetTerrain(point2) == TERRAIN_HOLE then
-      --Board:MarkSpaceImage(point, combatIcon, GL_Color(255,226,88,0.75))
-      Board:MarkSpaceImage(point2, "combat/tile_icon/tile_airstrike.png", GL_Color(255,226,88,0.75))
-      --end
+      if Board:GetTerrain(point) == TERRAIN_ROAD and Board:GetTerrain(point2) == TERRAIN_HOLE then
+        Board:MarkSpaceImage(point, combatIcon, GL_Color(255,226,88,0.75))
+        Board:MarkSpaceImage(point2, "combat/tile_icon/tile_airstrike.png", GL_Color(255,226,88,0.75))
+      end
     end
   end
 end
@@ -61,15 +60,8 @@ function Env_Leaping_Tiles:ApplyEffect()
   local currPos = self.Position
   local newPos = self.Position%2+1
   self.Ready = false
-  LOG("HERE0")
 
-  local from = self.MovingTiles[currPos]
-  self.MovingTiles[newPos] = randomize(self.MovingTiles[newPos])
-  local to = self.MovingTiles[newPos]
-
-  LOG("HERE")
-  leapingTiles:move_tiles(from,to,self.Pawn,self.CustomTile,"invisible.png")
-  LOG("HERE3")
+  leapingTiles:move_tiles(self.MovingTiles[currPos],self.MovingTiles[newPos],self.Pawn,self.CustomTile,"invisible.png")
 
   self.Position = newPos
   return false
