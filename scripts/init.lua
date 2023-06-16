@@ -20,7 +20,7 @@ local function init(self)
 		"Leaping_Control"
 	}
 
-	require(self.scriptPath.."leapingTiles.lua")
+	require(self.scriptPath.."leapingTiles")
 
 	local missionList = easyEdit.missionList:add("NamesAreHard")
 

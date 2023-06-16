@@ -1,6 +1,10 @@
 --All the leaping tiles data that isn't part of the "library", but also isn't the actual mechanic
 --ex: Pawn, assets, etc.
+local mod = mod_loader.mods[modApi.currentMod]
 local a = ANIMS
+
+--Global Copy
+NAH_Missions_leapingTiles = mod.libs.leapingTiles
 
 modApi:appendAsset("img/units/mission/propeller.png",mod.resourcePath.."img/units/mission/propeller.png")
 modApi:appendAsset("img/units/mission/propellera.png",mod.resourcePath.."img/units/mission/propellera.png")

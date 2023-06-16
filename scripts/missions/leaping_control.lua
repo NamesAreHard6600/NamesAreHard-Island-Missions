@@ -3,66 +3,102 @@
 local mod = mod_loader.mods[modApi.currentMod]
 local resourcePath = mod.resourcePath
 --local worldConstants = mod.libs.worldConstants
-local leapingTiles = mod.libs.leapingTiles
 
-local tiles = {{Point(5,5),Point(4,5),Point(5,4),Point(6,5),Point(5,6)},{Point(5,2),Point(4,2),Point(5,1),Point(6,2),Point(5,3)}}
-
-Mission_NAH_Leaping_Control = Mission_Infinite:new {
-  Name = "Leaping Tiles",
-  Environment = "Env_Moving_Tiles",
-  MovingTiles = tiles,
+local tiles = {
+  Point(4,1),
+  Point(4,2),
+  Point(4,5),
+  Point(4,6),
+  Point(5,1),
+  Point(5,2),
+  Point(5,5),
+  Point(5,6),
+  Point(6,1),
+  Point(6,2),
+  Point(6,5),
+  Point(6,6),
 }
 
-function Mission_NAH_Testing:StartMission()
-  for i, point in ipairs(self.MovingTiles[1]) do
-    Board:ClearSpace(point)
+Mission_NAH_Leaping_Control = Mission_Infinite:new {
+  Name = "Controled Tiles",
+  ControlStickPos = Point(0,3),
+  ControlStickId = nil,
+}
+
+function Mission_NAH_Leaping_Control:StartMission()
+  local control_stick = PAWN_FACTORY:CreatePawn("Control_Stick")
+  Board:ClearSpace(self.ControlStickPos)
+  Board:AddPawn(control_stick,self.ControlStickPos)
+  self.ControlStick = control_stick:GetId()
+  for y=0,7 do
+    for x=4,6 do
+      local point = Point(x,y)
+      local pawn = Board:GetPawn(point)
+      if pawn then
+        pawn:SetSpace(Point(7,pawn:GetSpace().y)) --HACKY
+      end
+      Board:ClearSpace(point)
+      Board:BlockSpawn(point,BLOCKED_PERM)
+      Board:SetTerrain(point,TERRAIN_HOLE)
+    end
+  end
+  for i, point in ipairs(tiles) do
+    Board:SetTerrain(point,TERRAIN_ROAD)
     Board:SetCustomTile(point,"moving_tile.png")
   end
 end
 
-Env_Leaping_Tiles = Environment:new{
-  Name = "Leaping Tiles",
-  Text = "Magic tiles are leaping around the island.", --Descriptive
-  CombatName = "LEAPING TILES",
-  StratText = "LEAPING TILES",
-  CombatIcon = "advanced/combat/tile_icon/tile_wind_up.png",
-  Position = 1,
-  MovingTiles = tiles,
-  Ready = false,
-  Pawn = "NAH_Leaping_Tile",
-  CustomTile = "moving_tile.png",
+
+Control_Stick = Pawn:new {
+  Image = "generator3",
+	Health = 2,
+	MoveSpeed = 0,
+	--NonGrid = true,
+	SkillList = { "Control_Stick_Attack" },
+	DefaultTeam = TEAM_PLAYER,
+	ImpactMaterial = IMPACT_METAL,
+	Pushable = false,
+	Corporate = true,
+	Corpse = true,
+	IgnoreSmoke = true,
+	SoundLocation = "/support/earthmover",
+}
+AddPawn("Control_Stick")
+
+Control_Stick_Attack = Skill:new {
+  Name = "Control Tiles",
+  Description = "Control which direction tiles leap to."
 }
 
---TODO:
---DESCRIPTION of tiles
-function Env_Leaping_Tiles:MarkBoard()
-  if self.Ready then
-    local otherPos = self.Position%2+1
-    local combatIcon = self.Position == 1 and "advanced/combat/tile_icon/tile_wind_up.png" or "advanced/combat/tile_icon/tile_wind_down.png"
-    for i, point in ipairs(self.MovingTiles[self.Position]) do
-      local point2 = self.MovingTiles[otherPos][i]
-      if Board:GetTerrain(point) == TERRAIN_ROAD and Board:GetTerrain(point2) == TERRAIN_HOLE then
-        Board:MarkSpaceImage(point, combatIcon, GL_Color(255,226,88,0.75))
-        Board:MarkSpaceImage(point2, "combat/tile_icon/tile_airstrike.png", GL_Color(255,226,88,0.75))
+function Control_Stick_Attack:GetTargetArea(p1)
+  local ret = PointList()
+  ret:push_back(p1+DIR_VECTORS[DIR_UP])
+  ret:push_back(p1+DIR_VECTORS[DIR_DOWN])
+  return ret
+end
+
+function Control_Stick_Attack:GetSkillEffect(p1,p2)
+  local ret = SkillEffect()
+  local mission = GetCurrentMission()
+  local vector = p2-p1
+
+  local from = {}
+  local to = {}
+
+  --Search all possible spots for moving tiles
+  for y=0,7 do
+    for x=4,6 do
+      local point = Point(x,y)
+      if Board:GetTerrain(point) == TERRAIN_ROAD and Board:GetCustomTile(point) == "moving_tile.png" then
+        table.insert(from,point)
+        table.insert(to,point+vector)
       end
     end
   end
-end
 
-function Env_Leaping_Tiles:IsEffect() return self.Ready end
+  ret:AddScript(string.format([[
+    NAH_Missions_leapingTiles:move_tiles(%s,%s,'NAH_Leaping_Tile','moving_tile.png','invisible.png')
+  ]],save_table(from),save_table(to)))
 
-function Env_Leaping_Tiles:Plan()
-  self.Ready = true
-  return false
-end
-
-function Env_Leaping_Tiles:ApplyEffect()
-  local currPos = self.Position
-  local newPos = self.Position%2+1
-  self.Ready = false
-
-  leapingTiles:move_tiles(self.MovingTiles[currPos],self.MovingTiles[newPos],self.Pawn,self.CustomTile,"invisible.png")
-
-  self.Position = newPos
-  return false
+  return ret
 end

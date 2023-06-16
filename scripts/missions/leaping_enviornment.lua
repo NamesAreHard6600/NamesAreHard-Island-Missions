@@ -9,11 +9,11 @@ local tiles = {{Point(5,5),Point(4,5),Point(5,4),Point(6,5),Point(5,6)},{Point(5
 
 Mission_NAH_Leaping_Enviornment = Mission_Infinite:new {
   Name = "Leaping Tiles",
-  Environment = "Env_Moving_Tiles",
+  Environment = "Env_Leaping_Tiles",
   MovingTiles = tiles,
 }
 
-function Mission_NAH_Testing:StartMission()
+function Mission_NAH_Leaping_Enviornment:StartMission()
   for i, point in ipairs(self.MovingTiles[1]) do
     Board:ClearSpace(point)
     Board:SetCustomTile(point,"moving_tile.png")
