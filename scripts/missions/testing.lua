@@ -69,87 +69,106 @@ end
 local function move_tile(p1,p2,effect)
   local pawn = Board:GetPawn(p1)
   if pawn and pawn:GetType() == "NAH_Propeller" then
-    effect:AddCharge(Board:GetPath(p1, p2, pawn:GetPathProf()), NO_DELAY)
-    --The second charge moves any pawns on it
-    effect:AddCharge(Board:GetPath(p1, p2, pawn:GetPathProf()), NO_DELAY)
+    effect:AddLeap(Board:GetPath(p1, p2, pawn:GetPathProf()), NO_DELAY)
+    --The second leap moves any pawns on it
+    effect:AddLeap(Board:GetPath(p1, p2, pawn:GetPathProf()), NO_DELAY)
   end
   return effect
 end
 
-local function move_tiles(mission)
+local function get_effect(from, to)
   local ret = SkillEffect()
   local new_speed = .25
 
-  local currPos = mission.Position
-  local newPos = mission.Position%2+1
-  local distance = mission.MovingTiles[currPos][1]:Manhattan(mission.MovingTiles[newPos][1])
+  local distance = from[1]:Manhattan(to[1])
+
+  local dying_pawns = {}
+
+  for i, point in ipairs(to) do
+    local pawn = Board:GetPawn(point)
+    if pawn then
+      table.insert(dying_pawns,pawn:GetId())
+    end
+  end
 
   worldConstants:setSpeed(ret,new_speed)
 
-  for i, point in ipairs(mission.MovingTiles[currPos]) do
+  for i, point in ipairs(from) do
     local p1 = point
-    local p2 = mission.MovingTiles[newPos][i]
+    local p2 = to[i]
     ret = move_tile(p1,p2,ret)
   end
 
-  ret:AddDelay(0.08 * distance * worldConstants:getDefaultSpeed() / new_speed)
-  worldConstants:resetSpeed(ret)
+  ret:AddDelay(0.45) --Slightly less than leap time
+
+  for k, id in ipairs(dying_pawns) do
+    ret:AddScript(string.format([[
+      local pawn = Board:GetPawn(%s)
+      pawn:SetFlying(false)
+      pawn:Fall(4)
+    ]],id)) --modApi:runLater(pawn:SetSpace(Point(-1,-1)))
+  end
 
 	return ret
 end
 
+--from: The list of points we are moving tiles from
+--to: The list of points we are moving tiles to, as matched with from
+local function move_tiles(from, to)
+  assert(type(from) == 'table')
+  assert(type(to) == 'table')
+  assert(#from == #to)
 
-function Env_Moving_Tiles:ApplyEffect()
-  local currPos = self.Position
-  local newPos = self.Position%2+1
-  self.Ready = false
-
+  local leaping_tiles = {}
   --Add pawns and set invisible tile
-  for i, point in ipairs(self.MovingTiles[currPos]) do
+  for i, point in ipairs(from) do
     local pawn = PAWN_FACTORY:CreatePawn("NAH_Propeller")
     Board:AddPawn(pawn,point)
+    --I don't know how important this is anymore.
     pawn:MoveToBottom() --Move it to the bottom so that we access it when needed
     Board:SetCustomTile(point,"invisible.png")
-    --Board:SetTerrain(point,TERRAIN_HOLE)
+    table.insert(leaping_tiles,pawn:GetId())
   end
 
   --schmoving
-  effect = move_tiles(self)
+  effect = get_effect(from,to)
 
   Board:AddEffect(effect)
 
   --Needs to wait some time for stuff to start moving
   modApi:scheduleHook(100, function()
     --Remove the invisible tile
-    for i, point in ipairs(self.MovingTiles[currPos]) do
+    for i, point in ipairs(from) do
       Board:SetTerrain(point,TERRAIN_HOLE)
     end
     --Add invisible tiles to end point
-    for i, point in ipairs(self.MovingTiles[newPos]) do
+    for i, point in ipairs(to) do
       Board:SetTerrain(point,TERRAIN_ROAD)
       Board:SetCustomTile(point,"invisible.png")
     end
   end)
 
-  modApi:conditionalHook(
+  modApi:scheduleHook(800, --Wait for leap to finish: It takes 800 msec
   function()
-    return not Board:IsBusy() --Wait for the last effect to finish fully
-  end,
-  function()
-    --Kill the pawns and replace with tiles
-    for i, point in ipairs(self.MovingTiles[newPos]) do
-      local pawn = Board:GetPawn(point)
-      if pawn and pawn:GetType() == "NAH_Propeller" then
-        pawn:SetSpace(Point(-1,-1))
-        pawn:Kill(false)
-      end
-      Board:SetCustomTile(point,"moving_tile.png")
+    --Kill All Tile Pawns and Place Tiles Back
+    for k, id in ipairs(leaping_tiles) do
+      local pawn = Board:GetPawn(id)
+      Board:SetCustomTile(pawn:GetSpace(),"moving_tile.png")
+      pawn:SetSpace(Point(-1,-1))
+      pawn:Kill(true)
     end
   end
   )
+end
+
+function Env_Moving_Tiles:ApplyEffect()
+  local currPos = self.Position
+  local newPos = self.Position%2+1
+  self.Ready = false
+
+  move_tiles(self.MovingTiles[currPos],self.MovingTiles[newPos])
 
   self.Position = newPos
-
   return false
 end
 
@@ -168,49 +187,3 @@ NAH_Propeller = {
   --MoveSkill = "NAH_Propeller_Move"
 }
 AddPawn("NAH_Propeller")
-
---[[
-NAH_Propeller_Move = Move:new
-{
-}
-
-function NAH_Propeller_Move:GetTargetArea(point)
-	local ret = PointList()
-  for dir=DIR_START, DIR_END do
-    for i=1, 7 do
-      local curr = point + DIR_VECTORS[dir]*i
-      if Board:IsValid(curr) then
-        ret:push_back(curr)
-      else
-        break
-      end
-    end
-  end
-  return ret
-end
-
-function NAH_Propeller_Move:GetSkillEffect(p1, p2)
-	local ret = SkillEffect()
-  local new_speed = .25
-  local distance = p2:Manhattan(p1)
-  LOG("THIS MOVE SKILL")
-
-  worldConstants:setSpeed(ret,new_speed)
-	--local mission = GetCurrentMission()
-  for dir=DIR_START, DIR_END do
-    local vector = DIR_VECTORS[dir]
-    local new_point = p1 + vector
-    local pawn = Board:GetPawn(new_point)
-    if pawn and pawn:GetType() == "NAH_Propeller" then
-      ret:AddCharge(Board:GetPath(new_point, p2+vector, Pawn:GetPathProf()), NO_DELAY)
-    end
-  end
-
-	ret:AddCharge(Board:GetPath(p1, p2, Pawn:GetPathProf()), NO_DELAY)
-
-  ret:AddDelay(0.08 * distance * worldConstants:getDefaultSpeed() / new_speed)
-  worldConstants:resetSpeed(ret)
-
-	return ret
-end
-]]
