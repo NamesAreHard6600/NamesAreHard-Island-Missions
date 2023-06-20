@@ -4,26 +4,14 @@ local mod = mod_loader.mods[modApi.currentMod]
 local a = ANIMS
 
 --Global Copy
-NAH_Missions_leapingTiles = mod.libs.leapingTiles
-
-local suffixes = {
-  "",
-  "_1_1",
-  "_0_1",
-  "_2_2",
-  "_1_2",
-  "_0_2",
-}
+NAH_Missions_LeapingTiles = require(mod.scriptPath.."libs/leapingTiles"):init("NAH_Leaping_Tile","moving_tile.png","invisible.png")
 
 --Tileset
 modApi:appendAsset("img/combat/tiles_grass/invisible.png",mod.resourcePath.."img/tileset/invisible.png")
 modApi:appendAsset("img/combat/tiles_grass/moving_tile.png",mod.resourcePath.."img/tileset/moving_tile.png")
 
 --"pawns"
-for i, suffix in ipairs(suffixes) do
-  modApi:appendAsset("img/units/mission/leaping_tile"..suffix..".png",mod.resourcePath.."img/units/mission/leaping_tile"..suffix..".png")
-end
-
+NAH_Missions_LeapingTiles:append_assets("leaping_tile")
 
 --Fun Copy Paste Time
 

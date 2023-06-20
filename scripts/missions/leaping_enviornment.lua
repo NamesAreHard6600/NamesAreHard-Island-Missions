@@ -71,7 +71,7 @@ function Env_Leaping_Tiles:ApplyEffect()
   local newPos = self.Position%2+1
   self.Ready = false
 
-  leapingTiles:move_tiles(self.MovingTiles[currPos],self.MovingTiles[newPos],self.Pawn,self.CustomTile,"invisible.png")
+  NAH_Missions_LeapingTiles:move_tiles(self.MovingTiles[currPos],self.MovingTiles[newPos])
 
   self.Position = newPos
   return false

@@ -97,7 +97,7 @@ function Control_Stick_Attack:GetSkillEffect(p1,p2)
   end
 
   ret:AddScript(string.format([[
-    NAH_Missions_leapingTiles:move_tiles(%s,%s,'NAH_Leaping_Tile','moving_tile.png','invisible.png')
+    NAH_Missions_LeapingTiles:move_tiles(%s,%s,'NAH_Leaping_Tile','moving_tile.png','invisible.png')
   ]],save_table(from),save_table(to)))
 
   return ret

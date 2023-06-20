@@ -9,7 +9,6 @@ local function init(self)
 	self.libs.modApiExt = modapiext
 	self.libs.weaponPreview = require(self.scriptPath.."libs/weaponPreview")
 	self.libs.worldConstants = require(mod.scriptPath.."libs/worldConstants")
-	self.libs.leapingTiles = require(mod.scriptPath.."libs/leapingTiles")
 
 
 	local NAH_Missions = {

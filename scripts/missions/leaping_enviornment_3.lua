@@ -3,7 +3,6 @@
 local mod = mod_loader.mods[modApi.currentMod]
 local resourcePath = mod.resourcePath
 --local worldConstants = mod.libs.worldConstants
-local leapingTiles = mod.libs.leapingTiles
 
 local tiles = {{Point(2,2),Point(2,5),Point(5,5),Point(5,2)},{Point(2,5),Point(5,5),Point(5,2),Point(2,2)}}
 
@@ -62,7 +61,7 @@ function Env_Leaping_Tiles:ApplyEffect()
   local newPos = self.Position%2+1
   self.Ready = false
 
-  leapingTiles:move_tiles(self.MovingTiles[currPos],self.MovingTiles[newPos],self.Pawn,self.CustomTile,"invisible.png")
+  NAH_Missions_LeapingTiles:move_tiles(self.MovingTiles[currPos],self.MovingTiles[newPos])
 
   self.Position = newPos
   return false
